@@ -1,0 +1,2 @@
+# training4newcomers
+新人課題に関するrepository
