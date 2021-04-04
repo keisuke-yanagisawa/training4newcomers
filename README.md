@@ -80,6 +80,7 @@
 
 - PDBにアクセスして、予測対象タンパク質の立体構造をカンニングすることは禁止です。
 - 予測の例となるコードを `src/lr_predict.py` に配置しました。
+  - `python src/lr_sample.py -train data/train.csv -test data/test.csv -out output.csv` で適切な形式に従った予測値ファイルを出力します。
   - 決して精度が良くない予測モデルなので、これよりも精度が悪いようであればプログラムにバグがある可能性があります。
 
 
