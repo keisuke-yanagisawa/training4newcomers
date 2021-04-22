@@ -32,7 +32,7 @@ def generate_label(df):
         ss = item.label
         for resn, _label in enumerate(ss):
             label.append(int(_label))
-    return label
+    return np.array(label)
 
 if __name__ == "__main__":
     
@@ -45,39 +45,58 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     check_args(args)
+
+    ###### 1. data preparation ######
     
-    train_df = pd.read_csv(args.train)
+    # read csv files
+    train_val_df = pd.read_csv(args.train)
+    test_df      = pd.read_csv(args.test) if (args.test is not None) else None
 
-    _data = []
-    label = []
+    # split into train dataset and validation dataset (not train-test splitting)
+    train_df, val_df = train_test_split(train_val_df, random_state=0)
 
+    # extract subsequence
     window_radius = args.window_radius
-    _data = generate_input(train_df, window_radius)
-    label = generate_label(train_df)
+    train_data_ = generate_input(train_df, window_radius)
+    val_data_   = generate_input(val_df, window_radius)
+    test_data_  = generate_input(test_df, window_radius) if (test_df is not None) else None
 
-    transformer = OneHotEncoder().fit(_data)
-    data = transformer.transform(_data)
-    label = np.array(label)
+    # encode an amino acids sequence into a numerical vector
+    # MUST use the same transformer for all data without refit 
+    transformer = OneHotEncoder().fit(train_data_)
+    train_data  = transformer.transform(train_data_)
+    val_data    = transformer.transform(val_data_)
+    test_data   = transformer.transform(test_data_) if (test_data_ is not None) else None
+
+    # extract label information
+    # Note: NO LABEL INFORMATION for test dataset
+    train_label = generate_label(train_df)
+    val_label   = generate_label(val_df)
+    # test_label = None
 
 
-    # data splitting
-    X_train, X_val, y_train, y_val = train_test_split(data, label, random_state=0)
+    # rename for interpretability
+    X_train, y_train = train_data, train_label
+    X_val,   y_val   = val_data,   val_label
+    X_test           = test_data
 
-    # training
-    model = LogisticRegression().fit(X_train, y_train)
+    ###### 2. model construction (w/ training dataset) ######    
     
-    # prediction & evaluation
+    model = LogisticRegression().fit(X_train, y_train)
+
+    ###### 3. model evaluation (w/ validation dataset) ######
+    
     score = model.score(X_val, y_val)
-    print('Q2 accuracy: %.4f'%(score))
     auc = roc_auc_score(y_val, model.predict_proba(X_val)[:, 1])
+
+    print('Q2 accuracy: %.4f'%(score))
     print('AUC: %.4f'%(auc))
 
+    ###### 4. prediction for test dataset ######
 
-    if args.test is not None:
-        test_df = pd.read_csv(args.test)
-        test_data_ = generate_input(test_df, window_radius)
-        test_data = transformer.transform(test_data_)
-        predicted = model.predict_proba(test_data)[:, 1]
+    if (test_df is not None) and (X_test is not None):
+        
+        predicted = model.predict_proba(X_test)[:, 1]
 
         sequence_id_list    = []
         residue_number_list = []
